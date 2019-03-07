@@ -1,0 +1,9 @@
+[package]
+name = "gfx_game"
+version = "0.1.0"
+authors = ["sirkibsirkib <christopher.esterhuyse@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+gfx_pp = { path = "C:/Git/gfx_pp" }
+rand = "0.6"

@@ -5,7 +5,7 @@ use std::path::Path;
 fn catch_close(event: glutin::Event, running: &mut bool) {
     if let glutin::Event::WindowEvent { event, .. } = event {
         match event {
-            glutin::WindowEvent::Closed
+            glutin::WindowEvent::CloseRequested
             | glutin::WindowEvent::KeyboardInput {
                 input:
                     glutin::KeyboardInput {
@@ -32,7 +32,8 @@ fn main() {
     let tree_tex = g
         .load_gpu_tex(Path::new("src/resources/liltrees.png"))
         .expect("whoops");
-    let mut stage = TransformStage::new(NUM_TREES as usize, 0);
+    let mut store = InstanceStorage::new(NUM_TREES as usize, 0);
+    let mut batch = InstanceBatcher::new();
     let _trees: Vec<_> = (0..NUM_TREES)
         .map(|i| {
             let x = rng.gen::<f32>() * 2.0 - 1.0;
@@ -40,11 +41,10 @@ fn main() {
             let y = z * 2.0 - 1.0;
             let z = z * 0.0001;
             let args = DrawArgs::default()
-                .with_scale([0.128, 0.108])
+                .with_scale([if i%2==0 {-0.128} else {0.128}, 0.108])
                 .with_pos([x, y, z]);
-            // .with_pos([]);
             let tr = TexRect::from_grid_texture_sizes(tree_tex.get_size(), [32,28],[i%5,0]);
-            let key = stage.add((args, tr)).unwrap();
+            let key = store.add((args, tr)).unwrap();
             (args, key)
         })
         .collect();
@@ -61,7 +61,7 @@ fn main() {
         g.clear_screen(BLACK);
         g.clear_depth(1.0);
 
-        stage.commit(&mut g, 0).unwrap();
+        store.commit(&mut g, 0).unwrap();
         g.draw(&tree_tex, 0..NUM_TREES, None).unwrap();
 
         g.finish_frame().unwrap();

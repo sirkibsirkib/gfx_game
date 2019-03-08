@@ -28,15 +28,15 @@ fn main() {
 
     const NUM_TREES: u32 = 300;
 
-    let mut g = Gfx::new(512, 512, "transtest".to_string(), 300);
+    let (mut g, mut e) = build_window([512.0;2], "transtest".into(), true, 300);
     let tree_tex = g
         .load_gpu_tex(Path::new("src/resources/liltrees.png"))
         .expect("whoops");
     let mut store = InstanceStorage::new(NUM_TREES as usize, 0);
-    let mut batch = InstanceBatcher::new();
+    let mut _batch = InstanceBatcher::new();
     let _trees: Vec<_> = (0..NUM_TREES)
         .map(|i| {
-            let x = rng.gen::<f32>() * 2.0 - 1.0;
+            let x = rng.gen::<f32>() * 4.0 - 1.0;
             let z = rng.gen::<f32>();
             let y = z * 2.0 - 1.0;
             let z = z * 0.0001;
@@ -53,16 +53,21 @@ fn main() {
     // begin main game loop
     let mut sleeper = Sleeper::default();
     let mut running = true;
+    let mut glob = Trans::identity();
     while running {
         // handle glutin events. takes arbitrary time
-        g.events_loop.poll_events(|e| catch_close(e, &mut running));
+        e.poll_events(|e| catch_close(e, &mut running));
 
         // update and render
+        let start = std::time::Instant::now();
         g.clear_screen(BLACK);
         g.clear_depth(1.0);
+        // glob *= Trans::translator([-0.03, -0.03, 0.]);
+        // g.set_global_trans(&glob);
 
         store.commit(&mut g, 0).unwrap();
         g.draw(&tree_tex, 0..NUM_TREES, None).unwrap();
+        println!("{:?}", start.elapsed());
 
         g.finish_frame().unwrap();
 

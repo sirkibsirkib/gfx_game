@@ -8,6 +8,7 @@ use crate::resources::InputControlling;
 use gfx_pp::high_level::poll_events_simple;
 use crate::resources::GlobalTrans;
 use specs::Write;
+use gfx_pp::high_level::GrowBehavior;
 use specs::{System, WriteStorage, join::Join, ReadStorage};
 use gfx_pp::{
 	glutin,
@@ -83,7 +84,7 @@ impl RenderSystem {
 			dirty_trees: BitSet::new(),
 			grass_datum,
 			reader_id: None,
-			trees: InstanceStorage::new(Self::TREE_CAPACITY, 0),
+			trees: InstanceStorage::new(Self::TREE_CAPACITY, GrowBehavior::Doubling, 0),
 		}
 	}
 }
@@ -91,11 +92,11 @@ impl<'a> System<'a> for RenderSystem {
     type SystemData = (
         Entities<'a>,
     	Write<'a, GlobalTrans>,
-    	ReadStorage<'a, Position>,
+    	WriteStorage<'a, Position>,
     	ReadStorage<'a, TreeBatchKey>,
         Read<'a, LazyUpdate>,
     );
-    fn run(&mut self, (ent, mut glo, pos, key, upd): Self::SystemData) {
+    fn run(&mut self, (ent, mut glo, mut pos, key, upd): Self::SystemData) {
     	// [grass][trees]
     	//  0      1.. 
 
@@ -112,21 +113,25 @@ impl<'a> System<'a> for RenderSystem {
     	}
 
     	// update trees that have been modified
-    	// self.dirty_trees.clear();
-    	// let events = pos.channel().read(self.reader_id.as_mut().expect("whee"));
-
-  //       for event in events {
-  //           match event {
-  //               ComponentEvent::Modified(id) => {
-  //                   self.dirty_trees.add(*id);
-  //               }
-  //               _ => {}, // TODO
-  //           }
-  //       }
-  //   	for (k, _p, _) in (&key, &pos, &self.dirty_trees).join() {
-  //   		let trans = Trans::identity(); // TODO
-  //   		self.trees.overwrite_trans_as_trans(k.0, trans).expect("hey");
-		// }
+    	self.dirty_trees.clear();
+    	if let Some(ref mut r) = self.reader_id {
+	        for event in pos.channel().read(r) {
+	            match event {
+	                ComponentEvent::Modified(id) => {
+	                    self.dirty_trees.add(*id);
+	                }
+	                _ => {}, // TODO
+	            }
+	        }
+	    	for (k, _p, _) in (&key, &pos, &self.dirty_trees).join() {
+	    		let trans = Trans::identity(); // TODO
+	    		self.trees.overwrite_trans_as_trans(k.0, trans).expect("hey");
+			}
+    	} else {
+    		println!("REGISTERED");
+    		self.reader_id = Some(pos.channel_mut().register_reader());
+    	}
+    	
 
     	use gfx_pp::high_level::*;
     	use gfx_pp::high_level::colors::BLACK;
@@ -139,8 +144,8 @@ impl<'a> System<'a> for RenderSystem {
         self.g.clear_depth(1.0);
         draw_singleton(&mut self.g, &self.grass_tex, &[self.grass_datum], 0).expect("FAM");
         
-
-        let dun = self.trees.commit(&mut self.g, 1).unwrap();
+        let mi = self.g.get_max_instances();
+        let dun = self.trees.commit(&mut self.g, 1..mi).unwrap();
         println!("DUN {:?}", dun);
         self.g.draw(&self.tree_tex, 1..(self.trees.len() as u32 + 1), None).unwrap();
         println!("self.trees.len() {:?}", self.trees.len());

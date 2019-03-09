@@ -34,8 +34,9 @@ fn main() {
 
     let mut rng = SmallRng::from_seed([0; 16]);
     for _ in 0..30 {
+    	let pos = [rng.gen::<f32>() * 300.0, rng.gen::<f32>() * 300.0];
     	world.create_entity()
-    	.with(Position([rng.gen::<f32>(), rng.gen::<f32>()]))
+    	.with(Position(pos))
     	.with(IsTree)
     	.build();
     }

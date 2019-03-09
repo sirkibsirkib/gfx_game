@@ -100,32 +100,33 @@ impl<'a> System<'a> for RenderSystem {
     	//  0      1.. 
 
     	// add new keys for trees
-    	for (e, _p, _) in (&ent, &pos, !&key).join() {
+    	for (e, p, _) in (&ent, &pos, !&key).join() {
     		println!("ADDING TREE");
-    		let datum = InstanceDatum {
-    			trans: Trans::identity(),
-    			tex_rect: TexRect::default(),
+    		let args = DrawArgs {
+    			pos: [p.0[0], p.0[1], 0.5],
+    			scale: [32.0, 28.0],
+    			..Default::default()
     		};
-    		let key = self.trees.add_as_trans(datum).expect("NO SPACE FOR TREE");
+    		let key = self.trees.add((args, TexRect::default())).expect("NO SPACE FOR TREE");
     		upd.insert(e, TreeBatchKey(key));
     	}
 
     	// update trees that have been modified
-    	self.dirty_trees.clear();
-    	let events = pos.channel().read(self.reader_id.as_mut().expect("whee"));
+    	// self.dirty_trees.clear();
+    	// let events = pos.channel().read(self.reader_id.as_mut().expect("whee"));
 
-        for event in events {
-            match event {
-                ComponentEvent::Modified(id) => {
-                    self.dirty_trees.add(*id);
-                }
-                _ => {}, // TODO
-            }
-        }
-    	for (k, _p, _) in (&key, &pos, &self.dirty_trees).join() {
-    		let trans = Trans::identity(); // TODO
-    		self.trees.overwrite_trans_as_trans(k.0, trans).expect("hey");
-		}
+  //       for event in events {
+  //           match event {
+  //               ComponentEvent::Modified(id) => {
+  //                   self.dirty_trees.add(*id);
+  //               }
+  //               _ => {}, // TODO
+  //           }
+  //       }
+  //   	for (k, _p, _) in (&key, &pos, &self.dirty_trees).join() {
+  //   		let trans = Trans::identity(); // TODO
+  //   		self.trees.overwrite_trans_as_trans(k.0, trans).expect("hey");
+		// }
 
     	use gfx_pp::high_level::*;
     	use gfx_pp::high_level::colors::BLACK;
@@ -139,9 +140,10 @@ impl<'a> System<'a> for RenderSystem {
         draw_singleton(&mut self.g, &self.grass_tex, &[self.grass_datum], 0).expect("FAM");
         
 
-        self.trees.commit(&mut self.g, 0).unwrap();
+        let dun = self.trees.commit(&mut self.g, 1).unwrap();
+        println!("DUN {:?}", dun);
         self.g.draw(&self.tree_tex, 1..(self.trees.len() as u32 + 1), None).unwrap();
-
+        println!("self.trees.len() {:?}", self.trees.len());
         self.g.finish_frame().unwrap();
 
     }
@@ -190,6 +192,8 @@ impl<'a> System<'a> for UserInputSystem {
     			SimpleEvent::KeyPress(code) => {
     				if let Some(h) = Self::keycode_map(code) {
     					holding_key[h] = true;
+    				} else if let glutin::VirtualKeyCode::A = code {
+    					println!("ESCAPE PRESSED");
     				}
     			},
     			SimpleEvent::KeyRelease(code) => {

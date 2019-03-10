@@ -57,7 +57,6 @@ fn main() {
         use crate::components::*;
         let [x, y] = [rng.gen::<f32>() * 300.0, rng.gen::<f32>() * 300.0];
         let z = y / 9999.0;
-        println!("tree z {:?}", z);
         let pos = [x, y, z];
         world
             .create_entity()

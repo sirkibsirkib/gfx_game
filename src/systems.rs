@@ -135,7 +135,6 @@ impl<'a> System<'a> for RenderSystem {
             let mut avail: Range<u32> = 0..self.g.max_instances();
             for (&tex_key, store) in self.sprite_batches.iter_mut() {
                 let rng: Range<u32> = store.commit(&mut self.g, avail.clone()).expect("NO SPACE");
-                println!("committed {:?} to {:?}", tex_key, &rng);
                 let texture = {
                     let RenderSystem {
                         ref mut textures,
@@ -152,62 +151,6 @@ impl<'a> System<'a> for RenderSystem {
                 avail.start = avail.start.max(rng.end + 5);
             }
         }
-
-        // 7:
-
-        // for (e, p, sp, _, _) in (&ent, &pos, &spri, &stat, !&bat).join() {
-        // 	let mut avail: Range<u32> = 0..self.g.capacity();
-        // 	for
-        // }
-
-        //  	// add new keys for trees
-        //  	for (e, p, _) in (&ent, &pos, !&key).join() {
-        //  		println!("ADDING TREE");
-        //  		let args = DrawArgs {
-        //  			pos: [p.0[0], p.0[1], 0.5],
-        //  			scale: [32.0, 28.0],
-        //  			..Default::default()
-        //  		};
-        //  		let key = self.trees.add((args, TexRect::default())).expect("NO SPACE FOR TREE");
-        //  		upd.insert(e, TreeBatchKey(key));
-        //  	}
-
-        //  	// update trees that have been modified
-        //  	self.dirty_trees.clear();
-        //  	if let Some(ref mut r) = self.reader_id {
-        //       for event in pos.channel().read(r) {
-        //           match event {
-        //               ComponentEvent::Modified(id) => {
-        //                   self.dirty_trees.add(*id);
-        //               }
-        //               _ => {}, // TODO
-        //           }
-        //       }
-        //   	for (k, _p, _) in (&key, &pos, &self.dirty_trees).join() {
-        //   		let trans = Trans::identity(); // TODO
-        //   		self.trees.overwrite_trans_as_trans(k.0, trans).expect("hey");
-        // }
-        //  	} else {
-        //  		println!("REGISTERED");
-        //  		self.reader_id = Some(pos.channel_mut().register_reader());
-        //  	}
-
-        //  	use gfx_pp::high_level::*;
-        //  	use gfx_pp::high_level::colors::BLACK;
-
-        //  	if let Some(trans) = glo.get_if_dirty_then_clean() {
-        //  		self.g.set_global_trans(&trans);
-        //  	}
-
-        //      self.g.clear_screen(BLACK);
-        //      self.g.clear_depth(1.0);
-        //      draw_singleton(&mut self.g, &self.grass_tex, &[self.grass_datum], 0).expect("FAM");
-
-        //      let mi = self.g.get_max_instances();
-        //      let dun = self.trees.commit(&mut self.g, 1..mi).unwrap();
-        //      println!("DUN {:?}", dun);
-        //      self.g.draw(&self.tree_tex, 1..(self.trees.len() as u32 + 1), None).unwrap();
-        //      println!("self.trees.len() {:?}", self.trees.len());
         self.g.finish_frame().unwrap();
     }
 }
@@ -259,14 +202,13 @@ impl<'a> System<'a> for UserInputSystem {
     );
 
     fn run(&mut self, (con, mut vel): Self::SystemData) {
-        // println!("UserInputSystem");
         let (e, holding_key) = (&mut self.e, &mut self.holding_key);
         for event in poll_events_simple(e) {
             match event {
                 SimpleEvent::KeyPress(code) => {
                     if let Some(h) = Self::keycode_map(code) {
                         holding_key[h] = true;
-                    } else if let glutin::VirtualKeyCode::A = code {
+                    } else if let glutin::VirtualKeyCode::Escape = code {
                         println!("ESCAPE PRESSED");
                     }
                 }

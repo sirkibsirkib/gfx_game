@@ -4,7 +4,7 @@ use crate::resources::InputControlling;
 use enum_map::enum_map as enum_map_make;
 use enum_map::Enum as EnumMapDerive;
 use enum_map::EnumMap;
-use fnv::FnvHashMap;
+use hashbrown::HashMap;
 use gfx_pp::high_level::poll_events_simple;
 use gfx_pp::high_level::GrowBehavior;
 use gfx_pp::low_level::SamplerInfo;
@@ -46,8 +46,8 @@ impl<'a> System<'a> for MovementSystem {
 /////////////////////////////////////////////////
 pub struct RenderSystem {
     g: Gfx,
-    textures: FnvHashMap<TexKey, GpuTexture>,
-    sprite_batches: FnvHashMap<TexKey, InstanceStorage>,
+    textures: HashMap<TexKey, GpuTexture>,
+    sprite_batches: HashMap<TexKey, InstanceStorage>,
     temp_bitset: BitSet,
     pos_reader: ReaderId<ComponentEvent>,
 }
@@ -55,8 +55,8 @@ impl RenderSystem {
     pub fn new(g: Gfx, pos_reader: ReaderId<ComponentEvent>) -> Self {
         Self {
             g,
-            sprite_batches: FnvHashMap::default(),
-            textures: FnvHashMap::default(),
+            sprite_batches: HashMap::default(),
+            textures: HashMap::default(),
             temp_bitset: BitSet::new(),
             pos_reader,
         }

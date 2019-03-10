@@ -28,8 +28,8 @@ pub struct Sprite {
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum TexKey {
-    Tree,
     Grass,
+    Tree,
 }
 
 // CURRENTLY BATCHED by render system

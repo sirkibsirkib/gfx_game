@@ -25,7 +25,7 @@ fn main() {
         x
     });
 
-    let (g, e) = gfx_pp::low_level::build_window([512.0; 2], "game!".into(), true, 100);
+    let (g, e) = gfx_pp::low_level::build_window([512.0; 2], "game!".into(), true, 500);
     let mut dispatcher = DispatcherBuilder::new()
         .with(systems::MovementSystem, "MovementSystem", &[])
         .with_thread_local(systems::RenderSystem::new(g, pos_reader_for_render))
@@ -39,7 +39,7 @@ fn main() {
     // add grass
     world
         .create_entity()
-        .with(components::Position([0., 0., 0.9]))
+        .with(components::Position([0., 0., 0.5]))
         .with(components::Sprite {
             scale: [100.0 * 3.0; 2],
             rot: 0.,
@@ -53,10 +53,10 @@ fn main() {
         .build();
 
     // add trees
-    for _ in 0..50 {
+    for _ in 0..200 {
         use crate::components::*;
-        let [x, y] = [rng.gen::<f32>() * 130.0, rng.gen::<f32>() * 130.0];
-        let z = y / 600.0;
+        let [x, y] = [rng.gen::<f32>() * 300.0, rng.gen::<f32>() * 300.0];
+        let z = y / 9999.0;
         println!("tree z {:?}", z);
         let pos = [x, y, z];
         world

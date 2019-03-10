@@ -1,3 +1,4 @@
+use crate::resources::MetaGameState;
 use gfx_pp::low_level::TexRect;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use specs::world::Builder;
@@ -24,6 +25,7 @@ fn main() {
         x.set_and_dirty(gfx_pp::low_level::Trans::identity().scaled([2. / 512.; 2]));
         x
     });
+    world.add_resource(resources::MetaGameState::default());
 
     let (g, e) = gfx_pp::low_level::build_window([512.0; 2], "game!".into(), true, 500);
     let mut dispatcher = DispatcherBuilder::new()
@@ -74,8 +76,8 @@ fn main() {
 
     // begin the main loop
     let mut sleeper = gfx_pp::high_level::Sleeper::default();
-    sleeper.min_sleep_time = std::time::Duration::from_millis(250);
-    loop {
+    sleeper.min_sleep_time = std::time::Duration::from_millis(16);
+    while world.read_resource::<MetaGameState>().running {
         dispatcher.dispatch(&mut world.res);
         world.maintain();
         sleeper.mark_measure_sleep();

@@ -1,3 +1,4 @@
+use crate::resources::MetaGameState;
 use crate::resources::GlobalTrans;
 use crate::resources::InputControlling;
 use enum_map::enum_map as enum_map_make;
@@ -84,7 +85,7 @@ impl<'a> System<'a> for RenderSystem {
                 tex_rect: sp.tex_rect,
             };
             let store_key = store.add_datum(datum).expect("NO SPACE???");
-            println!("adding new thng to batch {:?} {:?}", tex_key, store_key);
+            // println!("adding new thng to batch {:?} {:?}", tex_key, store_key);
             upd.insert(e, TexBatched { tex_key, store_key });
         }
 
@@ -199,9 +200,10 @@ impl<'a> System<'a> for UserInputSystem {
     type SystemData = (
         Option<Read<'a, InputControlling>>,
         WriteStorage<'a, Velocity>,
+        Write<'a, MetaGameState>,
     );
 
-    fn run(&mut self, (con, mut vel): Self::SystemData) {
+    fn run(&mut self, (con, mut vel, mut meta): Self::SystemData) {
         let (e, holding_key) = (&mut self.e, &mut self.holding_key);
         for event in poll_events_simple(e) {
             match event {
@@ -209,7 +211,7 @@ impl<'a> System<'a> for UserInputSystem {
                     if let Some(h) = Self::keycode_map(code) {
                         holding_key[h] = true;
                     } else if let glutin::VirtualKeyCode::Escape = code {
-                        println!("ESCAPE PRESSED");
+                        meta.running = false;
                     }
                 }
                 SimpleEvent::KeyRelease(code) => {

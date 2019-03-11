@@ -1,3 +1,5 @@
+use gfx_pp::low_level::LoadError;
+use gfx_pp::high_level::InstanceBatcher;
 use crate::resources::MetaGameState;
 use crate::resources::GlobalTrans;
 use crate::resources::InputControlling;
@@ -47,7 +49,8 @@ impl<'a> System<'a> for MovementSystem {
 pub struct RenderSystem {
     g: Gfx,
     textures: HashMap<TexKey, GpuTexture>,
-    sprite_batches: HashMap<TexKey, InstanceStorage>,
+    sprite_storages: HashMap<TexKey, InstanceStorage>,
+    sprite_batcher: InstanceBatcher<TexKey>,
     temp_bitset: BitSet,
     pos_reader: ReaderId<ComponentEvent>,
 }
@@ -55,7 +58,8 @@ impl RenderSystem {
     pub fn new(g: Gfx, pos_reader: ReaderId<ComponentEvent>) -> Self {
         Self {
             g,
-            sprite_batches: HashMap::default(),
+            sprite_storages: HashMap::default(),
+            sprite_batcher: InstanceBatcher::new(),
             textures: HashMap::default(),
             temp_bitset: BitSet::new(),
             pos_reader,
@@ -77,7 +81,7 @@ impl<'a> System<'a> for RenderSystem {
         for (e, p, sp, _, _) in (&ent, &pos, &spri, &stat, !&bat).join() {
             let tex_key = sp.tex_key;
             let store = &mut self
-                .sprite_batches
+                .sprite_storages
                 .entry(tex_key)
                 .or_insert_with(|| InstanceStorage::new(8, GrowBehavior::Doubling, 3));
             let datum = InstanceDatum {
@@ -92,14 +96,14 @@ impl<'a> System<'a> for RenderSystem {
         // 2: remove batch elements that are not STATIONARY
         for (e, b, _) in (&ent, &bat, !&stat).join() {
             let store = self
-                .sprite_batches
+                .sprite_storages
                 .get_mut(&b.tex_key)
                 .expect("none for key?");
             store.remove(b.store_key).expect("bad store key removal");
             upd.remove::<TexBatched>(e);
         }
 
-        // 3: update batche entries whose sprites OR positions have changed
+        // 3: update batched entries whose sprites OR positions have changed
         {
             self.temp_bitset.clear();
             for event in pos.channel().read(&mut self.pos_reader) {
@@ -112,15 +116,13 @@ impl<'a> System<'a> for RenderSystem {
             }
             for (b, p, sp, _) in (&bat, &pos, &spri, &self.temp_bitset).join() {
                 let trans = Self::trans_from(p, sp);
-                self.sprite_batches
+                self.sprite_storages
                     .get_mut(&b.tex_key)
                     .expect("no key for modify")
                     .overwrite_trans_as_trans(b.store_key, trans)
                     .expect("hey");
             }
         }
-
-        // TODO
 
         // 4: update global trans
         if let Some(trans) = glo.get_if_dirty_then_clean() {
@@ -132,28 +134,53 @@ impl<'a> System<'a> for RenderSystem {
         self.g.clear_depth(1.0);
 
         // 6: draw batch elements
+        let mut avail: Range<u32> = 0..self.g.max_instances();
         {
-            let mut avail: Range<u32> = 0..self.g.max_instances();
-            for (&tex_key, store) in self.sprite_batches.iter_mut() {
-                let rng: Range<u32> = store.commit(&mut self.g, avail.clone()).expect("NO SPACE");
-                let texture = {
-                    let RenderSystem {
-                        ref mut textures,
-                        ref mut g,
-                        ..
-                    } = self;
-                    &textures.entry(tex_key).or_insert_with(|| {
-                        let path = Self::tex_path(tex_key);
-                        let sampler_info = Self::tex_sampler_info(tex_key);
-                        g.load_gpu_tex(path, sampler_info).expect("BAD LOAD?")
-                    })
-                };
-                self.g.draw(texture, rng.clone(), None).unwrap();
+            let RenderSystem {
+                sprite_storages, textures, g, ..
+            } = self;
+            for (&tex_key, store) in sprite_storages.iter_mut() {
+                let rng: Range<u32> = store.commit(g, avail.clone()).expect("NO SPACE");
+                let texture = get_tex_for(g, textures, tex_key).expect("BAD batch TEX?");
+                g.draw(texture, rng.clone(), None).expect("draw 1 failed");
                 avail.start = avail.start.max(rng.end + 5);
             }
+        };
+
+        // 7: draw non-batched elements
+        {
+            for (p, sp, _, _) in (&pos, &spri, !&bat, !&stat).join() {
+                let datum = InstanceDatum {
+                    trans: Self::trans_from(p, sp),
+                    tex_rect: sp.tex_rect,
+                };
+                self.sprite_batcher.add(sp.tex_key, datum);
+            }
+            let RenderSystem {
+                sprite_batcher, textures, g, ..
+            } = self;
+            for (tex_key, slice) in sprite_batcher.iter_batches() {
+                g.prepare_instances(slice, avail.start).expect("UPD8");
+                let texture = get_tex_for(g, textures, tex_key).expect("BAD standalone TEX?");
+                let draw_rng = avail.start..(avail.start + slice.len() as u32);
+                g.draw(texture, draw_rng, None).expect("draw 2 failed");
+            }
+            sprite_batcher.clear(false);
         }
+
+        // 8: finish
         self.g.finish_frame().unwrap();
     }
+}
+
+fn get_tex_for<'a, 'b>(g: &'a mut Gfx, textures: &'b mut HashMap<TexKey, GpuTexture>, tex_key: TexKey) -> Result<&'b GpuTexture, LoadError> {
+    if !textures.contains_key(&tex_key) {
+        let path = RenderSystem::tex_path(tex_key);
+        let sampler_info = RenderSystem::tex_sampler_info(tex_key);
+        let tex = g.load_gpu_tex(path, sampler_info)?;
+        textures.insert(tex_key, tex);
+    }
+    Ok(textures.get(&tex_key).unwrap())
 }
 
 impl RenderSystem {

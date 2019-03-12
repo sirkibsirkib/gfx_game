@@ -35,16 +35,12 @@ impl GlobalTrans {
 #[derive(Debug)]
 pub struct InputControlling(pub Entity);
 
-
-
 #[derive(Debug)]
 pub struct MetaGameState {
     pub running: bool,
 }
 impl Default for MetaGameState {
     fn default() -> Self {
-        Self {
-            running: true,
-        }
+        Self { running: true }
     }
 }
